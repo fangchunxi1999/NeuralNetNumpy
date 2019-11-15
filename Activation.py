@@ -43,5 +43,5 @@ def activationDiff(Z, A, TypeOfActivation):
     elif TypeOfActivation == 'relu':
         diff = reluDiff(Z, A)
     else:
-        raise Exception("Not supported activation type")
+        raise Exception("Not supported activation diff type")
     return diff
