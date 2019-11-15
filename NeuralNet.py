@@ -84,7 +84,7 @@ class NeuralNet:
 
     def predict(self, A0):
         Z, A = self.forward(A0)
-        return A
+        return A[-1]
 
     def getOutputSize(self, layerIndex: int):
         return self.layerList[layerIndex][0]
