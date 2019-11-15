@@ -18,6 +18,25 @@ class Activation:
         elif TypeOfActivation == 'relu':
             A = relu(Z)
         else:
-            raise Exception("Activation function not found")
+            raise Exception("Not supported activation type")
 
         return A
+
+    def softmaxDiff(self, Z, A):
+        pass  # (╯°□°）╯︵ ┻━┻)
+
+    def sigmoidDiff(self, Z, A):
+        return A * (1 - A)
+
+    def reluDiff(self, Z, A):
+        return (Z > 0)
+
+    def activationDiff(self, Z, A, TypeOfActivation):
+        if TypeOfActivation == 'sigmoid':
+            diff = sigmoidDiff(Z, A)
+        elif TypeOfActivation == 'relu':
+            diff = reluDiff(Z, A)
+        else:
+            raise Exception("Not supported activation type")
+
+        return diff
