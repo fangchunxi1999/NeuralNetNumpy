@@ -1,14 +1,11 @@
 import numpy as np
-import Layer
-import Loss
-import Activation
+import NeuralNetNumpy.Layer as Layer
+import NeuralNetNumpy.Loss as Loss
+import NeuralNetNumpy.Activation as Activation
+from random import shuffle
 
 
 class NeuralNet:
-
-    # Z = sum(W * X) + B , X = A
-    # A = relu(Z)
-    # read W,B save A,Z
 
     def __init__(self):
         self.weightList = []
@@ -67,20 +64,38 @@ class NeuralNet:
             self.weightList.append(weightTmp)
             self.biasList.append(biasTmp)
 
-    def train(self, X, Y, epoch, leaningRate=0.01, lossFunction='Entropy'):
+    def train(self, X: np.ndarray, Y: np.ndarray, epoch: int, leaningRate=0.01, batchSize=32, lossFunction='Entropy'):
         layerCount = len(self.layerList)
         datasetCount = len(X)
+
+        nBatch = int(datasetCount / batchSize)
+
         for i in range(epoch):
-            Z, A = self.forward(X)
-            loss = Loss.loss(Y, A[-1], lossFunction)
+            print("Iteartion: {}/{} ".format(i + 1, epoch), end='')
+
+            loss = 0.0
+            indices = np.random.permutation(datasetCount)
+            X = X[indices]
+            Y = Y[indices]
+
+            for j in range(0, datasetCount, batchSize):
+                #print(".", end='')
+                X_i = X[i:i + batchSize]
+                Y_i = Y[i:i + batchSize]
+
+                Z, A = self.forward(X_i)
+                loss = loss + Loss.loss(Y_i, A[-1], lossFunction)
+
+                weightAdj, biasAdj = self.backward(Y_i, Z, A)
+                for j in range(layerCount - 1):
+                    self.weightList[j] = self.weightList[j] + \
+                        (leaningRate / datasetCount) * weightAdj[j]
+                    self.biasList[j] = self.biasList[j] + \
+                        (leaningRate / datasetCount) * biasAdj[j]
+
             self.errorList.append(loss)
-            weightAdj, biasAdj = self.backward(Y, Z, A)
-            for j in range(layerCount - 1):
-                self.weightList[j] = self.weightList[j] + \
-                    (leaningRate / datasetCount) * weightAdj[j]
-                self.biasList[j] = self.biasList[j] + \
-                    (leaningRate / datasetCount) * biasAdj[j]
-            print("Iteartion: {}/{}".format(i, epoch))
+
+            print("(loss: {})".format(loss))
 
     def predict(self, A0):
         Z, A = self.forward(A0)

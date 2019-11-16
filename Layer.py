@@ -1,5 +1,5 @@
 import numpy as np
-import Activation
+import NeuralNetNumpy.Activation as Activation
 
 
 def flatten(inputSize: tuple):
