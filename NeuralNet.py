@@ -52,6 +52,9 @@ class NeuralNet:
         return weightAdj[::-1], biasAdj[::-1]
 
     def build(self):
+        self.weightList = []
+        self.biasList = []
+        self.errorList = []
         for i in range(len(self.layerList) - 1):
             currOutputSize = self.getOutputSize(i)
             nextOutputSize = self.getOutputSize(i + 1)
