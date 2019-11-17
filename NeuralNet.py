@@ -76,8 +76,6 @@ class NeuralNet:
         for i in range(epoch):
             print("Iteartion: {}/{} ".format(i + 1, epoch), end='')
 
-            learningRate = learningRate * 1 / (1 + lrDecay * epoch)
-
             loss = 0.0
             indices = np.random.permutation(datasetCount)
             X = X[indices]
@@ -99,6 +97,7 @@ class NeuralNet:
                         (learningRate / datasetCount) * biasAdj[j]
 
             self.errorList.append(loss)
+            learningRate = learningRate * 1 / (1 + lrDecay * epoch)
 
             print("(loss: {})".format(loss))
 
