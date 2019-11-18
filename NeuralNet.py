@@ -104,7 +104,7 @@ class NeuralNet:
     def predict(self, A0):
         A0_One = np.concatenate([i[np.newaxis] for i in [A0]])
         A = self.predictMultiple(A0_One)
-        return A
+        return A[0]
 
     def predictMultiple(self, A0):
         Z, A = self.forward(A0)
