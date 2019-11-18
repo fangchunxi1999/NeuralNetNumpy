@@ -67,7 +67,7 @@ class NeuralNet:
             self.weightList.append(weightTmp)
             self.biasList.append(biasTmp)
 
-    def train(self, X: np.ndarray, Y: np.ndarray, epoch: int, learningRate=0.01, batchSize=32, lossFunction='Entropy', lrDecay=0.1):
+    def train(self, X: np.ndarray, Y: np.ndarray, epoch: int, learningRate=0.01, batchSize=32, lossFunction='Entropy'):
         layerCount = len(self.layerList)
         datasetCount = len(X)
 
@@ -97,11 +97,16 @@ class NeuralNet:
                         (learningRate / datasetCount) * biasAdj[j]
 
             self.errorList.append(loss)
-            learningRate = learningRate * 1 / (1 + lrDecay * epoch)
+            #learningRate = learningRate * 1 / (1 + lrDecay * epoch)
 
             print("(loss: {})".format(loss))
 
     def predict(self, A0):
+        A0_One = np.concatenate([i[np.newaxis] for i in A0])
+        A = self.predictMultiple(A0_One)
+        return A
+
+    def predictMultiple(self, A0):
         Z, A = self.forward(A0)
         return A[-1]
 
