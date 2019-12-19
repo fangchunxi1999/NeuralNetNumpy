@@ -1,32 +1,36 @@
 import numpy as np
-import NeuralNetNumpy.Layer as Layer
 import NeuralNetNumpy.Loss as Loss
-import NeuralNetNumpy.Activation as Activation
+from NeuralNetNumpy.Layer import *
+from NeuralNetNumpy.Activation import *
 from random import shuffle
 
 
 class NeuralNet:
 
     def __init__(self):
-        self.weightList = []
-        self.biasList = []
         self.errorList = []
         self.layerList = []
 
-    def addLayer(self, layer: tuple):
-        self.layerList.append(layer)
+    def add(self, Layer: Layer):
+        self.layerList.append(Layer)
+
+    def build(self):
+        self.errorList = []
+        for i, l in enumerate(self.layerList):
+            if i == 0:
+                l.build()
+                nextInputSize = l.outputSize
+            else:
+                l.build(nextInputSize)
+                nextInputSize = l.outputSize
 
     def forward(self, A0):
-        Z = []
         A = []
-        for i in range(len(self.layerList)):
-            if len(A) == 0:
-                A_i = A0
-            Z_i, A_i = Layer.layer(
-                A_i, i, self.weightList, self.biasList, self.layerList)
-            Z.append(Z_i)
+        A_i = A0
+        for l in self.layerList:
+            A_i = l.forward(A_i)
             A.append(A_i)
-        return Z, A
+        return A
 
     def backward(self, Y, Z, A):
         layerCount = len(self.layerList)
@@ -51,24 +55,26 @@ class NeuralNet:
 
         return weightAdj[::-1], biasAdj[::-1]
 
-    def build(self):
-        self.weightList = []
-        self.biasList = []
-        self.errorList = []
-        for i in range(len(self.layerList) - 1):
-            currOutputSize = self.getOutputSize(i)
-            nextOutputSize = self.getOutputSize(i + 1)
+    def backward(self, Y, A):
+        weightAdj = []
+        biasAdj = []
+        dA_i = Y - A[-1]
+        for l in reversed(self.layerList):
+            dA_i, dW_i, dB_i = l.backward(dA_i)
+            weightAdj.append(dW_i)
+            biasAdj.append(dB_i)
 
-            weightTmp = np.random.randn(
-                currOutputSize, nextOutputSize) / np.sqrt(nextOutputSize)
-            biasTmp = np.random.randn(
-                nextOutputSize) / np.sqrt(nextOutputSize)
+        return weightAdj[::-1], biasAdj[::-1]
 
-            self.weightList.append(weightTmp)
-            self.biasList.append(biasTmp)
+    def createOnehot(self, Y):
+        datasetCount = len(Y)
+        classCount = len(np.unique(Y))
+        onehot = np.zeros([datasetCount, classCount])
+        for i in range(datasetCount):
+            onehot[i, Y[i]] = 1
+        return onehot
 
-    def train(self, X: np.ndarray, Y: np.ndarray, epoch: int, learningRate=0.01, batchSize=32, lossFunction='Entropy'):
-        layerCount = len(self.layerList)
+    def train(self, X: list, Y: list, epoch: int, learningRate=0.01, batchSize=32, lossFunction='Entropy'):
         datasetCount = len(X)
 
         nBatch = int(datasetCount / batchSize)
@@ -77,49 +83,34 @@ class NeuralNet:
             print("Iteartion: {}/{} ".format(i + 1, epoch), end='')
 
             loss = 0.0
-            indices = np.random.permutation(datasetCount)
-            X = X[indices]
-            Y = Y[indices]
+            tmp = list(zip(X, Y))
+            shuffle(tmp)
+            X, Y = zip(*tmp)
 
             for j in range(0, datasetCount, batchSize):
                 #print(".", end='')
                 X_i = X[i:i + batchSize]
                 Y_i = Y[i:i + batchSize]
+                Y_i = self.createOnehot(Y_i)
 
-                Z, A = self.forward(X_i)
+                A = self.forward(X_i)
                 loss = loss + Loss.loss(Y_i, A[-1], lossFunction)
 
-                weightAdj, biasAdj = self.backward(Y_i, Z, A)
-                for j in range(layerCount - 1):
-                    self.weightList[j] = self.weightList[j] + \
-                        (learningRate / datasetCount) * weightAdj[j]
-                    self.biasList[j] = self.biasList[j] + \
-                        (learningRate / datasetCount) * biasAdj[j]
+                weightAdj, biasAdj = self.backward(Y_i, A)
+                for i, l in enumerate(self.layerList):
+                    l.adjustParams(
+                        weightAdj[i], biasAdj[i], learningRate, datasetCount)
 
             self.errorList.append(loss)
             #learningRate = learningRate * 1 / (1 + lrDecay * epoch)
+            print(" (loss: {})".format(loss))
 
-            print("(loss: {})".format(loss))
+    def predict(self, A0: list):
+        return self.forward(A0)[-1]
 
-    def predict(self, A0):
-        A0_One = np.concatenate([i[np.newaxis] for i in [A0]])
-        A = self.predictMultiple(A0_One)
-        return A[0]
-
-    def predictMultiple(self, A0):
-        Z, A = self.forward(A0)
-        return A[-1]
-
-    def getOutputSize(self, layerIndex: int):
-        return self.layerList[layerIndex][0]
-
-    def loadModel(self, weight, bias, layer):
-        self.weightList = weight
-        self.biasList = bias
+    def loadModel(self, layer):
         self.layerList = layer
 
     def dumpModel(self):
-        weight = self.weightList
-        bias = self.biasList
         layer = self.layerList
-        return weight, bias, layer
+        return layer

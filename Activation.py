@@ -1,6 +1,35 @@
 import numpy as np
 
 
+class Activation():
+    def __init__(self):
+        super().__init__()
+
+
+class Softmax(Activation):
+    def cal(self, Z):
+        return np.exp(Z) / np.sum(np.exp(Z), axis=1, keepdims=True)
+
+    def diff(self, Z, A):
+        return Z * (1 - Z)
+
+
+class Sigmoid(Activation):
+    def cal(self, Z):
+        return 1 / (1 + np.exp(-Z))
+
+    def diff(self, Z, A):
+        return A * (1 - A)
+
+
+class Relu(Activation):
+    def cal(self, Z):
+        return np.maximum(0, Z)
+
+    def diff(self, Z, A):
+        return (Z > 0)
+
+
 def softmax(Z):
     return np.exp(Z) / np.sum(np.exp(Z), axis=1, keepdims=True)
 
