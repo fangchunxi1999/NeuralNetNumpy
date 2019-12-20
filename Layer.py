@@ -26,6 +26,7 @@ class Flatten(Layer):
             self.inputSize = inputSize
         if self.inputSize is None:
             raise ValueError("Input Size is not set!")
+
         self.outputSize = np.prod(self.inputSize)
 
     def forward(self, A0):
@@ -55,6 +56,7 @@ class Dense(Layer):
             self.inputSize = inputSize
         if self.inputSize is None:
             raise ValueError("Input Size is not set!")
+
         self.weight = np.random.randn(
             self.inputSize, self.outputSize) / np.sqrt(self.outputSize)
         self.bias = np.random.randn(self.outputSize) / np.sqrt(self.outputSize)
@@ -79,47 +81,79 @@ class Conv(Layer):
     pass
 
 
-class Pooling(Layer):
-    pass
+class MaxPool(Layer):
+    def __init__(self, kernelSize=(2, 2), stride=2, inputSize=None):
+        self.kernelSize = kernelSize
+        self.stride = stride
+        self.inputSize = inputSize
 
+    def build(self, inputSize=None):
+        if inputSize is not None:
+            self.inputSize = inputSize
+        if self.inputSize is None:
+            raise ValueError("Input Size is not set!")
 
-##########################################################
-""" 
+        old_H, old_W, old_C = self.inputSize
+        kernel_H, kernel_W = self.kernelSize
 
-def flatten(inputSize: tuple):
-    outputSize = np.prod(inputSize)
-    return (outputSize, "Flatten")
+        new_H = int(1 + (old_H - kernel_H) / self.stride)
+        new_W = int(1 + (old_H - kernel_W) / self.stride)
+        new_C = old_C
 
+        self.outputSize = (new_H, new_W, new_C)
 
-def flattenCal(A0, outputSize):
-    A = np.empty((0, outputSize), int)
-    for item in A0:
-        item = item.reshape(1, -1)
-        A = np.vstack((A, item))
-    return A, A
+    def forward(self, A0):
+        new_H, new_W, new_C = self.outputSize
+        A = []
 
+        for data in A0:
+            tmp_A = np.zeros((new_H, new_W, new_C))
+            for h in range(new_H):
+                for w in range(new_W):
 
-def dense(activation: str, size: int):
-    outputSize = size
-    return (outputSize, activation, "Dense")
+                    vStart = h * self.stride
+                    vEnd = vStart + self.kernelSize[0]
 
+                    hStart = w * self.stride
+                    hEnd = hStart + self.kernelSize[1]
 
-def denseCal(A0, weight, bias, activation: str):
-    Z = np.dot(A0, weight) + bias
-    A = Activation.activation(Z, activation)
-    return Z, A
+                    for c in range(new_C):
+                        tmp_A[h, w, c] = np.max(
+                            data[vStart:vEnd, hStart:hEnd, c])
+            A = A + [tmp_A]
 
+        self.Z = A0
+        self.A = A
 
-def layer(A0, layerIndex, weightList, biasList, layerList):
-    TypeOfLayer = layerList[layerIndex][-1]
-    if TypeOfLayer == "Flatten":
-        outputSize = layerList[layerIndex][0]
-        return flattenCal(A0, outputSize)
-    elif TypeOfLayer == "Dense":
-        weight = weightList[layerIndex - 1]
-        bias = biasList[layerIndex - 1]
-        activation = layerList[layerIndex][1]
-        return denseCal(A0, weight, bias, activation)
-    else:
-        raise Exception("Not supported layer type")
- """
+        return self.A
+
+    def backward(self, dA):
+        old_H, old_W, old_C = self.inputSize
+        new_H, new_W, new_C = self.outputSize
+
+        dA0 = []
+
+        for i, data in enumerate(dA):
+            a = self.Z[i]
+            tmp_dA0 = np.zeros((old_H, old_W, old_C))
+
+            for h in range(new_H):
+                for w in range(new_W):
+
+                    vStart = h * self.stride
+                    vEnd = vStart + self.kernelSize[0]
+
+                    hStart = w * self.stride
+                    hEnd = hStart + self.kernelSize[1]
+
+                    for c in range(new_C):
+                        aSlice = a[vStart:vEnd, hStart:hEnd, c]
+                        mask = self.createMask(aSlice)
+                        tmp_dA0[vStart:vEnd, hStart:hEnd,
+                                c] += data[h, w, c] * mask
+            dA0 = dA0 + [tmp_dA0]
+
+        return dA0
+
+    def createMask(self, x):
+        return x == np.max(x)
