@@ -46,7 +46,7 @@ class Flatten(Layer):
 
 
 class Dense(Layer):
-    def __init__(self, outputSize, Activation: Activation, inputSize=None):
+    def __init__(self, outputSize: int, Activation: Activation, inputSize=None):
         self.inputSize = inputSize
         self.outputSize = outputSize
         self.activation = Activation
@@ -78,7 +78,58 @@ class Dense(Layer):
 
 
 class Conv(Layer):
-    pass
+    def __init__(self, kernelCount: int, activation: Activation, kernelSize=(3, 3), padding='valid', stride=1, inputSize=None):
+        supportedPadding = ['valid', 'same']
+        if padding not in supportedPadding:
+            raise TypeError("\'{}\' padding not founded. Only {} is supported".format(
+                padding, supportedPadding))
+        self.kernelCount = kernelCount
+        self.activation = activation
+        self.kernelSize = kernelSize
+        self.padding = padding
+        self.stride = stride
+        self.inputSize = inputSize
+
+    def build(self, inputSize=None):
+        if inputSize is not None:
+            self.inputSize = inputSize
+        if self.inputSize is None:
+            raise ValueError("Input Size is not set!")
+
+        old_H, old_W, old_C = self.inputSize
+        kernelSize_H, kernelSize_W = self.kernelSize
+
+        if self.padding == 'same':
+            pad_H = int(((old_H - 1) * self.stride + kernelSize_H - old_H) / 2)
+            pad_W = int(((old_W - 1) * self.stride + kernelSize_W - old_W) / 2)
+            new_H = old_H
+            new_W = old_W
+        elif self.padding == 'valid':
+            pad_H = 0
+            pad_W = 0
+            new_H = int((old_H - kernelSize_H) / self.stride) + 1
+            new_W = int((old_W - kernelSize_W) / self.stride) + 1
+
+        self.paddingSize = (pad_H, pad_W)
+        self.outputSize = (new_H, new_W, self.kernelCount)
+
+        shape = (kernelSize_H, kernelSize_W, old_C, self.kernelCount)
+        self.weight, self.bias = self.initW_B(shape)
+
+    def getFans(self, shape):
+        fanIn = shape[0] if len(shape) == 2 else np.prod(shape[1:])
+        fanOut = shape[1] if len(shape) == 2 else shape[1]
+        return fanIn, fanOut
+
+    def initW_B(self, shape):
+        fanIn, fanOut = self.getFans(shape)
+        scale = np.sqrt(2. / fanIn)
+        shape = (fanIn, fanOut) if len(shape) == 2 else shape
+        biasShape = (fanOut, 1) if len(shape) == 2 else (1, 1, 1, shape[3])
+
+        normal = np.random.normal(0, scale, size=shape)
+        uniform = np.random.uniform(-scale, scale, size=shape)
+        return normal, uniform
 
 
 class MaxPool(Layer):
@@ -157,3 +208,43 @@ class MaxPool(Layer):
 
     def createMask(self, x):
         return x == np.max(x)
+
+
+""" ちゃろー☆
+    &Wggggggr                   ||gMT||||||||||@M*`                  @          *g
+         ,@"                 ,|,@T||||||||yg@M'             ,       ]jL           "W
+      ,;$R                 ||,@*|||||ill@M*'             ,iL       ,@}@
+    l||$F                ||,@F,|illm&$@"|      ,     ,yllT` ;L     $|#$
+    '`#F               |||g@@&M*'||@F|||| ||   'L.ill|@F` ;l|L    $@@*$       ],
+     $F   |          ,||,@`     ,@"|||||||||||lLjL,g@F' ;@F|T    $$WMT$L       $
+    @M   |          |  #F%wwg,,@'|||||||||||||||@M@&` jg@||lL   gF||||$L        @
+    @   |    :,    |||$Lggggg@$$@g,|||||||,g@M" ,@lL|@@F'l|L   #F|  ||$         ]L
+    `  |       '*Wgg$@@@@@@@$$$$$$$g@@@M*'`   ,@||y#L]F|lL|` ,@L|   |}$          @
+      |         | "$@@@@@@@NMMMMN@@@@@@@@g  ,@|,@F` $F||||L gK ||||||j@          $
+               |  |@@@M*"|||,gggggg,|*%@@@@$@&*"W,,@|lL|||;@`    ||||$F        | ]
+     |    |L      $@@'   g@@@M*$$$$@@@g,*M@@@g   ]ML||lW|@"       "||$        .L ]F
+    |     jF  |  $$@L  g@@@@@,,g@@@$$$$@g||j@@@g@T|||Lg&$          ']F        l` ]k
+          jF |  ]M$F ,@@@@@@@@@@@@@@$@$$@|||'%@$|||,gM'  `          @        gW  $k
+          jF    & $ j@@@@@@@@@@@@@@@@$@$@ '';&*$g@M"               $L    ,wMllL j@TL
+          |@   jF M $@$$$$@@@@$$$$@@@$$@@  gLgM*T                 1F,,W*'` l$F  $|lL
+           $   $L 'j$T|l&@@@@@@$$$$@NN@@F                       +@F'     |g@F  $FllL
+           ]@| $    L  ' j$$$$$@@M'    &                        gF     ,g@]F  $MlllL
+    ,,ggwwg $L $ |  "@    "*MMMMT                              g"|  |,@M'|&||$$|lllL
+    '` ,gM' j@,$||   '*,       ||L,,                         ,@li|l@M'  ,F|y@$||||||
+    g@*`||  j@&$L|  ||'     ,,|,g@M"                     wM"lLw&*$,,gg@@@$@$@|||||||
+    &gg,     $Lj@L ,|L |      ''`                          `,gg@@@@@@@@@@@@@||||||||
+       '"%g, ]W||&|||  |||'                             g@@@@@@@@NMM*""'`;&|||||||||
+    @F**M*'` |$|||||||||'             ,,ggg,,          j%@@$L'`         gL|||||||||@
+    |$L '&L   jg||||||'            ,@F" ||||||%g         '*%@@@g,     g&||||||||g&M|
+    l|jg  ]g   $L||||;||'        gF`   |||||||||*g           '%@@@@ggM`||||,g@M|#T||
+    g@NM%g j@, '%g|||'`        ,@`       ||||||||j@g            "%N@@@@@F"'|||gM|,g@
+    '%||||%gl&@,'%@g,          @`          ||||||j$'            ,L '$@F|||||yM|g@T$L
+      "W|||||&$l@,%l%@g       |F            |||||$F             || j@`| |,g$p&" |@"
+    '   jw||||||M%@@gj@@@g,   '@             |||#"          |   || |$L||`'||j$||@`
+         '%||||||||&|1&$@@@@gg "W            |gF            || |||||'$L   ||@L;@
+        '  jw|||||||%g||j$@MM%@@@g,     ,,,wM"              '|||||,g@F`   |$LgP
+            "@|||||||jg|T%@||||||%%@@@g$,`                  ,,gg@@M'     |jFgF
+             '&|||||||l@||"%@|||||@T|#MM%N@@@@@@@@@@@@@@@@NM%F''}@       |$$L
+               $||||||||@L||'%g|@$gM||||||||||||j|||$F|||||l'$L|}$L      $@$
+     ,          &    |||"@ ''|j@T||||||||||||||l@|lj&|||||lL  jL}$@    |$@ $L     yF
+"""
