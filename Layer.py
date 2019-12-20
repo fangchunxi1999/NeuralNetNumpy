@@ -114,7 +114,89 @@ class Conv(Layer):
         self.outputSize = (new_H, new_W, self.kernelCount)
 
         shape = (kernelSize_H, kernelSize_W, old_C, self.kernelCount)
-        self.weight, self.bias = self.initW_B(shape)
+        W, B = self.initW_B(shape)
+
+        self.weight = W
+        self.bias = B
+
+    def forward(self, A0):
+        kernelSize_H, kernelSize_W = self.kernelSize
+        pad_H, pad_W = self.paddingSize
+        new_H, new_W, new_C = self.outputSize
+
+        Z = []
+
+        for data in A0:
+            tmp_Z = np.zeros((new_H, new_W, new_C))
+            x = self.padInput(data)
+            for h in range(new_H):
+                for w in range(new_W):
+
+                    vStart = self.stride * h
+                    vEnd = vStart + kernelSize_H
+
+                    hStart = self.stride * w
+                    hEnd = hStart + kernelSize_W
+
+                    for c in range(new_C):
+                        xSlice = x[vStart:vEnd, hStart:hEnd, :]
+                        tmp_Z[h, w, c] = self.singleStep(
+                            xSlice, self.weight[:, :, :, c], self.bias[:, :, :, c])
+            Z = Z + [tmp_Z]
+
+        A = [self.activation.cal(z) for z in Z]
+
+        self.Z = Z
+        self.A = A
+        self.A0 = A0
+
+        return A
+
+    def backward(self, dA):
+        # dA -> dZ -> dA0
+        kernelSize_H, kernelSize_W = self.kernelSize
+        pad_H, pad_W = self.paddingSize
+        old_H, old_W, old_C = self.inputSize
+        new_H, new_W, new_C = self.outputSize
+
+        A0 = self.A0
+
+        dZ = [self.activation.diff(a) for a in dA]
+
+        dA0 = []
+        dW = np.zeros_like(self.weight)
+        dB = np.zeros_like(self.bias)
+
+        for i, data in enumerate(dZ):
+            a_pad = self.padInput(A0[i])
+            tmp_dA0 = np.zeros((old_H, old_W, old_C))
+            tmp_dA0_pad = self.padInput(tmp_dA0)
+
+            for h in range(old_H):
+                for w in range(old_W):
+
+                    vStart = self.stride * h
+                    vEnd = vStart + kernelSize_H
+
+                    hStart = self.stride * w
+                    hEnd = hStart + kernelSize_W
+
+                    for c in range(new_C):
+                        aSlice = a_pad[vStart:vEnd, hStart:hEnd, :]
+                        tmp_dA0_pad[vStart:vEnd, hStart:hEnd,
+                                    :] += self.weight[:, :, :, c] * dZ[i][h, w, c]
+                        dW[:, :, :, c] += aSlice * dZ[i][h, w, c]
+                        dB[:, :, :, c] += dZ[i][h, w, c]
+            dA0 = dA0 + [tmp_dA0_pad[pad_H:-pad_H, pad_W:-pad_W, :]]
+
+        return dA0, dW, dB
+
+    def adjustParams(self, dW, dB, learningRate, count):
+        # To-Do
+        return super().adjustParams(dW, dB, learningRate, count)
+
+    def singleStep(self, x, W, B):
+        return np.sum(np.multiply(x, W) + float(B))
 
     def getFans(self, shape):
         fanIn = shape[0] if len(shape) == 2 else np.prod(shape[1:])
@@ -128,8 +210,13 @@ class Conv(Layer):
         biasShape = (fanOut, 1) if len(shape) == 2 else (1, 1, 1, shape[3])
 
         normal = np.random.normal(0, scale, size=shape)
-        uniform = np.random.uniform(-scale, scale, size=shape)
+        uniform = np.random.uniform(-scale, scale, size=biasShape)
         return normal, uniform
+
+    def padInput(self, X):
+        pad = self.paddingSize
+        Y = np.pad(X, ((pad[0], pad[0]), (pad[1], pad[1]), (0, 0)), 'constant')
+        return Y
 
 
 class MaxPool(Layer):
@@ -173,19 +260,22 @@ class MaxPool(Layer):
                             data[vStart:vEnd, hStart:hEnd, c])
             A = A + [tmp_A]
 
-        self.Z = A0
+        self.A0 = A0
         self.A = A
 
         return self.A
 
     def backward(self, dA):
+        # dA -> dZ -> dA0
         old_H, old_W, old_C = self.inputSize
         new_H, new_W, new_C = self.outputSize
+
+        A0 = self.A0
 
         dA0 = []
 
         for i, data in enumerate(dA):
-            a = self.Z[i]
+            a = A0[i]
             tmp_dA0 = np.zeros((old_H, old_W, old_C))
 
             for h in range(new_H):
@@ -205,6 +295,9 @@ class MaxPool(Layer):
             dA0 = dA0 + [tmp_dA0]
 
         return dA0
+
+    def adjustParams(self, dW, dB, learningRate, count):
+        pass
 
     def createMask(self, x):
         return x == np.max(x)
