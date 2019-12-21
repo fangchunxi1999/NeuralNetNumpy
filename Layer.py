@@ -109,6 +109,8 @@ class Conv(Layer):
             pad_W = 0
             new_H = int((old_H - kernelSize_H) / self.stride) + 1
             new_W = int((old_W - kernelSize_W) / self.stride) + 1
+        else:
+            raise TypeError("\'{}\' padding not founded.".format(self.padding))
 
         self.paddingSize = (pad_H, pad_W)
         self.outputSize = (new_H, new_W, self.kernelCount)
@@ -192,8 +194,8 @@ class Conv(Layer):
         return dA0, dW, dB
 
     def adjustParams(self, dW, dB, learningRate, count):
-        # To-Do
-        return super().adjustParams(dW, dB, learningRate, count)
+        self.weight -= learningRate * (dW + self.weight)
+        self.bias -= learningRate * (dB + self.bias)
 
     def singleStep(self, x, W, B):
         return np.sum(np.multiply(x, W) + float(B))
@@ -294,7 +296,7 @@ class MaxPool(Layer):
                                 c] += data[h, w, c] * mask
             dA0 = dA0 + [tmp_dA0]
 
-        return dA0
+        return dA0, None, None
 
     def adjustParams(self, dW, dB, learningRate, count):
         pass

@@ -32,29 +32,6 @@ class NeuralNet:
             A.append(A_i)
         return A
 
-    def backward(self, Y, Z, A):
-        layerCount = len(self.layerList)
-        weightAdj = []
-        biasAdj = []
-        err = None
-        for i in range(layerCount - 1, 0, -1):
-            if i == layerCount - 1:
-                delta = Y - A[i]
-                diff = 1
-            else:
-                delta = np.dot(err, self.weightList[i].T)
-                diff = Activation.activationDiff(
-                    Z[i], A[i], self.layerList[i][1])
-            err = delta * diff
-
-            wAdj = np.dot(A[i - 1].T, err)
-            bAdj = np.array(np.sum(err, axis=0))
-
-            weightAdj.append(wAdj)
-            biasAdj.append(bAdj)
-
-        return weightAdj[::-1], biasAdj[::-1]
-
     def backward(self, Y, A):
         weightAdj = []
         biasAdj = []
@@ -88,7 +65,7 @@ class NeuralNet:
             X, Y = zip(*tmp)
 
             for j in range(0, datasetCount, batchSize):
-                #print(".", end='')
+                print(".", end='')
                 X_i = X[i:i + batchSize]
                 Y_i = Y[i:i + batchSize]
                 Y_i = self.createOnehot(Y_i)
