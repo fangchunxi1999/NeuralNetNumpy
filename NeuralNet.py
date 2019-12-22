@@ -26,7 +26,7 @@ class NeuralNet:
 
     def forward(self, A0):
         A = []
-        A_i = A0
+        A_i = np.asarray(A0)
         for l in self.layerList:
             A_i = l.forward(A_i)
             A.append(A_i)
@@ -69,21 +69,22 @@ class NeuralNet:
                 X_i = X[i:i + batchSize]
                 Y_i = Y[i:i + batchSize]
                 Y_i = self.createOnehot(Y_i)
+                Y_i = Y_i.T
 
                 A = self.forward(X_i)
-                loss = loss + Loss.loss(Y_i, A[-1], lossFunction)
+                loss = loss + Loss.loss(Y_i.T, A[-1].T, lossFunction)
 
                 weightAdj, biasAdj = self.backward(Y_i, A)
+
                 for i, l in enumerate(self.layerList):
-                    l.adjustParams(
-                        weightAdj[i], biasAdj[i], learningRate, datasetCount)
+                    l.adjustParams(weightAdj[i], biasAdj[i], learningRate)
 
             self.errorList.append(loss)
             #learningRate = learningRate * 1 / (1 + lrDecay * epoch)
             print(" (loss: {})".format(loss))
 
     def predict(self, A0: list):
-        return self.forward(A0)[-1]
+        return self.forward(A0)[-1].T
 
     def loadModel(self, layer):
         self.layerList = layer

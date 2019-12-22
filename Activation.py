@@ -8,10 +8,15 @@ class Activation():
 
 class Softmax(Activation):
     def cal(self, Z):
-        return np.exp(Z) / np.sum(np.exp(Z), axis=1, keepdims=True)
+        self.Z = Z
+        Z_ = Z - Z.max()
+        e = np.exp(Z_)
+        #return np.exp(Z) / np.sum(np.exp(Z), axis=1, keepdims=True)
+        return e / np.sum(e, axis=0, keepdims=True)
 
     def diff(self, dA):
-        return dA * (1 - dA)
+        #return dA * (1 - dA)
+        return dA * (self.Z * (1 - self.Z))
 
 
 class Sigmoid(Activation):
@@ -24,7 +29,10 @@ class Sigmoid(Activation):
 
 class Relu(Activation):
     def cal(self, Z):
-        return np.maximum(0, Z)
+        self.Z = Z
+        #return np.maximum(0, Z)
+        return np.where(Z >= 0, Z, 0)
 
     def diff(self, dA):
-        return (dA > 0)
+        #return (dA > 0)
+        return dA * np.where(self.Z >= 0, 1, 0)
