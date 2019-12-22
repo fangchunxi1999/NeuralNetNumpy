@@ -1,94 +1,81 @@
 import numpy as np
-import NeuralNetNumpy.Loss as Loss
-from NeuralNetNumpy.Layer import *
-from NeuralNetNumpy.Activation import *
-from random import shuffle
+
+from NeuralNetNumpy.Util.Util import get_batches, evaluate
 
 
 class NeuralNet:
+    def __init__(self, *model, **kwargs):
+        self.model = model
+        self.loss = None
+        self.numClass = 0
 
-    def __init__(self):
-        self.errorList = []
-        self.layerList = []
+    def setNumClass(self, numClass: int):
+        self.numClass = numClass
 
-    def add(self, Layer: Layer):
-        self.layerList.append(Layer)
+    def setLoss(self, loss):
+        self.loss = loss
 
-    def build(self):
-        self.errorList = []
-        for i, l in enumerate(self.layerList):
-            if i == 0:
-                l.build()
-                nextInputSize = l.outputSize
+    def train(self, X, Y, epoch: int, loss, learnRate=0.001, l2=1e-4, batchSize=32):
+        iter = 1
+        for e in range(epoch):
+            print("Epoch: ", e + 1)
+            for i, (xBatch, yBatch) in enumerate(get_batches(X, Y, batch_size=batchSize)):
+                batchPred = xBatch.copy()
+                for num, layer in enumerate(self.model):
+                    batchPred = layer.forward(batchPred, saveCache=True)
+
+                dA = self.loss.compute_derivative(yBatch, batchPred)
+
+                for layer in reversed(self.model):
+                    dA = layer.backward(dA)
+
+                for layer in self.model:
+                    if layer.hasWeight():
+                        layer.applyGrads(learnRate=learnRate, l2=l2)
+        iter += batchSize
+
+    def predict(self, X):
+        batchSize = X.shape[0]
+        prediction = np.zeros((1, X.shape[0]))
+
+        numBatch = X.shape[0] // batchSize
+
+        for batchNum, xBatch in enumerate(get_batches(X, batch_size=batchSize, shuffle=False)):
+            batchPred = xBatch.copy()
+            for layer in self.model:
+                batchPred = layer.forward(batchPred)
+            M, N = batchPred.shape
+
+            if M != prediction.shape[0]:
+                prediction = np.zeros((M, X.shape[0]))
+
+            if batchNum <= numBatch - 1:
+                prediction[:, batchNum *
+                           batchSize:(batchNum + 1) * batchSize] = batchPred
             else:
-                l.build(nextInputSize)
-                nextInputSize = l.outputSize
+                prediction[:, batchNum * batchSize:] = batchPred
 
-    def forward(self, A0):
-        A = []
-        A_i = np.asarray(A0)
-        for l in self.layerList:
-            A_i = l.forward(A_i)
-            A.append(A_i)
-        return A
+        return prediction
 
-    def backward(self, Y, A):
-        weightAdj = []
-        biasAdj = []
-        dA_i = Y - A[-1]
-        for l in reversed(self.layerList):
-            dA_i, dW_i, dB_i = l.backward(dA_i)
-            weightAdj.append(dW_i)
-            biasAdj.append(dB_i)
+    def evaluate(self, X, Y):
+        prediction = self.predict(X)
+        M, N = prediction.shape
+        if (M, N) == Y.shape:
+            return evaluate(Y, prediction)
+        elif (N, M) == Y.shape:
+            return evaluate(Y.T, prediction)
 
-        return weightAdj[::-1], biasAdj[::-1]
+    def load(self, model):
+        self.model = model
 
-    def createOnehot(self, Y):
-        datasetCount = len(Y)
-        classCount = len(np.unique(Y))
-        onehot = np.zeros([datasetCount, classCount])
-        for i in range(datasetCount):
-            onehot[i, Y[i]] = 1
-        return onehot
+    def dump(self):
+        return self.model
 
-    def train(self, X: list, Y: list, epoch: int, learningRate=0.01, batchSize=32, lossFunction='Entropy'):
-        datasetCount = len(X)
 
-        nBatch = int(datasetCount / batchSize)
-
-        for i in range(epoch):
-            print("Iteartion: {}/{} ".format(i + 1, epoch), end='')
-
-            loss = 0.0
-            tmp = list(zip(X, Y))
-            shuffle(tmp)
-            X, Y = zip(*tmp)
-
-            for j in range(0, datasetCount, batchSize):
-                print(".", end='')
-                X_i = X[i:i + batchSize]
-                Y_i = Y[i:i + batchSize]
-                Y_i = self.createOnehot(Y_i)
-                Y_i = Y_i.T
-
-                A = self.forward(X_i)
-                loss = loss + Loss.loss(Y_i.T, A[-1].T, lossFunction)
-
-                weightAdj, biasAdj = self.backward(Y_i, A)
-
-                for i, l in enumerate(self.layerList):
-                    l.adjustParams(weightAdj[i], biasAdj[i], learningRate)
-
-            self.errorList.append(loss)
-            #learningRate = learningRate * 1 / (1 + lrDecay * epoch)
-            print(" (loss: {})".format(loss))
-
-    def predict(self, A0: list):
-        return self.forward(A0)[-1].T
-
-    def loadModel(self, layer):
-        self.layerList = layer
-
-    def dumpModel(self):
-        layer = self.layerList
-        return layer
+def createOnehot(self, Y):
+    datasetCount = len(Y)
+    classCount = len(np.unique(Y))
+    onehot = np.zeros([datasetCount, classCount])
+    for i in range(datasetCount):
+        onehot[i, Y[i]] = 1
+    return onehot

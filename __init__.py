@@ -1,4 +1,3 @@
-from . import Activation
-from . import Layer
-from . import Loss
-from . import NeuralNet
+from . import Loss, NeuralNet
+from .Layer import Activation, Conv2D, Dense, Flatten, Pooling
+from .Util import Initalizer, Util

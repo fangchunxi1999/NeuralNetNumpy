@@ -1,58 +1,26 @@
 import numpy as np
 
 
-def findSSE(Y, YHat):
-    return np.sum((Y - YHat) ** 2)
+class CategoricalCrossEntropy:
+    @staticmethod
+    def compute_loss(labels, predictions, epsilon=1e-8):
+        '''
+       The function to compute the categorical cross entropy loss, given training labels and prediction
+       :param labels:[numpy array]: Training labels
+       :param predictions:[numpy array]: Predicted labels
+       :param epsilon:[float default=1e-8]: A small value for applying clipping for stability
+       :return:[float]: The computed value of loss.
+       '''
+        predictions /= np.sum(predictions, axis=0, keepdims=True)
+        predictions = np.clip(predictions, epsilon, 1. - epsilon)
+        return -np.sum(labels * np.log(predictions))
 
-
-def findMSE(Y, YHat):
-    datasetCount = Y.shape[0]
-    return findSSE(Y, YHat) / datasetCount
-
-
-def findMAE(Y, YHat):
-    datasetCount = Y.shape[0]
-    return np.sum(np.abs(Y - YHat)) / datasetCount
-
-
-def findMAPE(Y, YHat):
-    datasetCount = Y.shape[0]
-    return np.sum(np.abs(Y - YHat)) * 100 / datasetCount
-
-
-def findEntropy(Y, YHat):
-    return np.sum(-Y * np.log(YHat))
-
-
-def findBinaryClass(Y, YHat):
-    datasetCount = Y.shape[0]
-    _Y = np.round(Y, 0)
-    _YHat = np.round(YHat, 0)
-    return 100 * np.sum(_Y != _YHat) / datasetCount
-
-
-def findMultiClass(Y, YHat):
-    datasetCount = Y.shape[0]
-    Y_Argmax = np.argmax(Y, axis=1)
-    YHat_Argmax = np.argmax(YHat, axis=1)
-    return 100 * np.sum(Y_Argmax != YHat_Argmax) / datasetCount
-
-
-def loss(Y, YHat, TypeOfLoss: str):
-    if TypeOfLoss == 'SSE':
-        loss = findSSE(Y, YHat)
-    elif TypeOfLoss == 'MSE':
-        loss = findMSE(Y, YHat)
-    elif TypeOfLoss == 'MAE':
-        loss = findMAE(Y, YHat)
-    elif TypeOfLoss == 'MAPE':
-        loss = findMAPE(Y, YHat)
-    elif TypeOfLoss == 'Entropy':
-        loss = findEntropy(Y, YHat)
-    elif TypeOfLoss == 'Binary':
-        loss = findBinaryClass(Y, YHat)
-    elif TypeOfLoss == 'Multiclass':
-        loss = findMultiClass(Y, YHat)
-    else:
-        raise Exception("Not supported loss function")
-    return loss
+    @staticmethod
+    def compute_derivative(labels, predictions):
+        '''
+        The function to compute the derivative values of categorical cross entropy values, given labels and prediction
+        :param labels:[numpy array]: Training labels
+        :param predictions:[numpy array]: Predicted labels
+        :return:[numpy array]: The computed derivatives of categorical cross entropy function.
+        '''
+        return labels - predictions
