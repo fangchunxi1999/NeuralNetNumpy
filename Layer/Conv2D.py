@@ -84,7 +84,7 @@ class Conv2D:
         self.grade['dW'] = np.zeros_like(self.paras['W'])
         self.grade['db'] = np.zeros_like(self.paras['b'])
 
-        A_pad = pad_inputs(A(pad_h, pad_w))
+        A_pad = pad_inputs(A, (pad_h, pad_w))
         dA0_pad = pad_inputs(dA0, (pad_h, pad_w))
 
         for i in range(num):
@@ -110,6 +110,6 @@ class Conv2D:
 
     def applyGrads(self, learnRate=0.001, l2=1e-4):
         self.paras['W'] -= learnRate * \
-            (self.grads['dW'] + l2 * self.paras['W'])
-        self.paras['B'] -= learnRate * \
-            (self.grads['db'] + l2 * self.paras['B'])
+            (self.grade['dW'] + l2 * self.paras['W'])
+        self.paras['b'] -= learnRate * \
+            (self.grade['db'] + l2 * self.paras['b'])

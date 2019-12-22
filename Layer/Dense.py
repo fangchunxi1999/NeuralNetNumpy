@@ -23,7 +23,7 @@ class Dense:
             self.paras['W'] = W
             self.paras['b'] = b
 
-        Z = np.dot(self.paras['W', A0]) + self.paras['b']
+        Z = np.dot(self.paras['W'], A0) + self.paras['b']
 
         if saveCache:
             self.cache['A'] = A0
@@ -40,5 +40,5 @@ class Dense:
     def applyGrads(self, learnRate=0.001, l2=1e-4):
         self.paras['W'] -= learnRate * \
             (self.grads['dW'] + l2 * self.paras['W'])
-        self.paras['B'] -= learnRate * \
-            (self.grads['db'] + l2 * self.paras['B'])
+        self.paras['b'] -= learnRate * \
+            (self.grads['db'] + l2 * self.paras['b'])

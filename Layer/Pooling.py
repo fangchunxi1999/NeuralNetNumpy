@@ -22,7 +22,7 @@ class Pooling:
         new_w = int(1 + (old_w - kernel_w) / self.paras['stride'])
         new_c = old_c
 
-        A = np.zeros(A0.shape)
+        A = np.zeros((num, new_h, new_w, new_c))
 
         for i in range(num):
             for h in range(new_h):
@@ -50,7 +50,8 @@ class Pooling:
         return np.ones(shape) * dZ * avg
 
     def mask(self, x):
-        return x == np.max(x)
+        a = x == np.max(x)
+        return a
 
     def backward(self, dA):
         A = self.cache['A']
@@ -70,10 +71,12 @@ class Pooling:
                     hEnd = hStart + kernel_w
                     for c in range(new_c):
                         if self.paras['mode'] == 'avarage':
+
                             da = dA[i, h, w, c]
                             dA0[i, vStart:vEnd, hStart:hEnd,
                                 c] += self.disValue(da, self.paras['kernelSize'])
                         elif self.paras['mode'] == 'max':
+
                             aSlice = a[vStart:vEnd, hStart:hEnd, c]
                             mask = self.mask(aSlice)
                             dA0[i, vStart:vEnd, hStart:hEnd,

@@ -18,8 +18,9 @@ class NeuralNet:
     def train(self, X, Y, epoch: int, loss, learnRate=0.001, l2=1e-4, batchSize=32):
         iter = 1
         for e in range(epoch):
-            print("Epoch: ", e + 1)
+            print("Epoch: ", e + 1, end=' ')
             for i, (xBatch, yBatch) in enumerate(get_batches(X, Y, batch_size=batchSize)):
+                print(".", end='')
                 batchPred = xBatch.copy()
                 for num, layer in enumerate(self.model):
                     batchPred = layer.forward(batchPred, saveCache=True)
