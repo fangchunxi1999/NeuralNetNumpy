@@ -33,6 +33,7 @@ class NeuralNet:
                 for layer in self.model:
                     if layer.hasWeight():
                         layer.applyGrads(learnRate=learnRate, l2=l2)
+            print()
         iter += batchSize
 
     def predict(self, X):
